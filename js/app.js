@@ -1,13 +1,13 @@
 /* Control de Embarques · Somos Logística CESANTONI.
    Ventas da de alta el pedido → Operación lo arma y documenta → Transporte lo despacha y lo monitorea. */
-import * as API from './datos.js?v=18';
-import { MOTIVOS_REPROGRAMACION, INCIDENCIAS, puntualidad, ESTATUS, ESTATUS_OPERACION, DOCUMENTOS, CHECKLIST, docsCompletos, docsAvance, tipoUnidad, excedeCapacidad, revisarChecklist, norm, combinarFolios, esLigaCorta } from './reglas.js?v=18';
-import { revisarPartida, EMBALAJES, ADHESIVOS, REVISION } from './embalajes.js?v=18';
-import { leerLibro, interpretar, combinar, compararFolio } from './acopio.js?v=18';
-import { desdeSeguimiento, desdeFletes, combinarCatalogos, tarifaPara, clientePara, unirTransportista } from './catalogos.js?v=18';
-import { planear } from './ruta.js?v=18';
-import { ubicacion } from './gps.js?v=18';
-import { h, mount, toast, ocupado, fecha, kg, toneladas, pesos, modal, campo, entrada, selector, logos, cargarMapa, mapaEn, leerCoordenadas } from './ui.js?v=18';
+import * as API from './datos.js?v=19';
+import { MOTIVOS_REPROGRAMACION, INCIDENCIAS, puntualidad, ESTATUS, ESTATUS_OPERACION, DOCUMENTOS, CHECKLIST, docsCompletos, docsAvance, tipoUnidad, excedeCapacidad, revisarChecklist, norm, combinarFolios, esLigaCorta } from './reglas.js?v=19';
+import { revisarPartida, EMBALAJES, ADHESIVOS, REVISION } from './embalajes.js?v=19';
+import { leerLibro, interpretar, combinar, compararFolio } from './acopio.js?v=19';
+import { desdeSeguimiento, desdeFletes, combinarCatalogos, tarifaPara, clientePara, unirTransportista } from './catalogos.js?v=19';
+import { planear } from './ruta.js?v=19';
+import { ubicacion } from './gps.js?v=19';
+import { h, mount, toast, ocupado, fecha, kg, toneladas, pesos, modal, campo, entrada, selector, logos, cargarMapa, mapaEn, leerCoordenadas } from './ui.js?v=19';
 
 const CFG = window.LC_CONFIG;
 const main = document.getElementById('main'), nav = document.getElementById('nav'), cuenta = document.getElementById('cuenta');
@@ -1025,7 +1025,7 @@ async function incidencias() {
 }
 
 /* ================================================================== ALERTAS */
-const estadoCorreo = (a) => ({ enviado: 'enviado' + (a.correo_para ? ' a ' + a.correo_para : ''), pendiente: 'pendiente (envío por Outlook aún no instalado)',
+const estadoCorreo = (a) => ({ enviado: 'enviado a ' + (a.correo_para || '') + ' destinatario(s)', pendiente: 'pendiente',
   'no activado': 'no activado', 'sin destinatarios': 'sin destinatarios', 'tope diario': 'no se mandó: se llegó al tope del día', error: 'error' + (a.correo_error ? ' — ' + a.correo_error : ''),
   simulado: 'simulado' })[a.correo || 'pendiente'] || a.correo;
 /* Configuración › Correos de alertas: qué áreas (y qué correos extra) reciben cada tipo de alerta. Lo lee la función correoAlertas. */
@@ -1034,6 +1034,7 @@ async function seccionCorreos() {
   const TIPOS = [['checklist', 'Checklist reprobado'], ['sin_checklist', 'Salida sin checklist'], ['capacidad', 'Sobrepeso'], ['parado', 'Folio parado'], ['modificacion', 'Modificación de acopio']];
   const AREAS = ['ventas', 'operacion', 'transporte', 'admin'];
   const activo = h('input', { type: 'checkbox', checked: !!cfg.activo, id: 'correo-activo' });
+  const url = entrada({ type: 'url', value: cfg.url || '', id: 'correo-url', placeholder: 'https://script.google.com/macros/s/…/exec' });
   const tope = entrada({ type: 'number', min: 1, max: 10000, step: 1, value: cfg.tope_diario || 10000, id: 'correo-tope' });
   const casillas = {}, extras = {};
   const filas = TIPOS.map(([k, n]) => {
@@ -1045,16 +1046,17 @@ async function seccionCorreos() {
   });
   const btn = h('button', { class: 'btn primario', type: 'button' }, 'Guardar correos');
   btn.addEventListener('click', async () => {
-    const datos = { activo: activo.checked, tope_diario: Math.min(10000, Math.max(1, Number(tope.value) || 10000)), areas: {}, extra: {} };
+    const datos = { activo: activo.checked, url: url.value.trim(), tope_diario: Math.min(10000, Math.max(1, Number(tope.value) || 10000)), areas: {}, extra: {} };
     TIPOS.forEach(([k]) => {
       datos.areas[k] = AREAS.filter((a) => casillas[k][a].checked);
       datos.extra[k] = extras[k].value.split(/[,;\s]+/).map((c) => c.trim().toLowerCase()).filter((c) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c));
     });
-    try { await ocupado(btn, () => API.guardarConfig('correos', datos)); toast('Correos de alertas guardados.'); } catch (x) { err(x); }
+    try { await ocupado(btn, () => API.recalcularCorreos(datos)); toast('Correos de alertas guardados.'); } catch (x) { err(x); }
   });
   return h('section', { class: 'tarjeta' }, h('h2', null, 'Correos de alertas (Outlook)'),
-    h('p', { class: 'gris chico' }, 'Se mandan desde un buzón de Outlook de CESANTONI (hasta 10,000 destinatarios al día). Requiere instalar la función de envío: ver docs/correo-outlook en el repositorio. Mientras no esté instalada, las alertas quedan como «pendiente».'),
+    h('p', { class: 'gris chico' }, 'Se mandan desde tu Outlook (jroman@cesantoni.com.mx) con un script de Apps Script, hasta 10,000 destinatarios al día. Instalación: docs/correo-outlook en el repositorio. Pega aquí la URL del script publicado.'),
     h('label', { class: 'casilla' }, activo, ' Enviar las alertas por correo'),
+    h('div', { class: 'rejilla' }, h('div', { class: 'todo' }, campo('URL del script (Apps Script)', url))),
     h('div', { class: 'tabla-scroll' }, h('table', { class: 'tabla compacta' },
       h('thead', null, h('tr', null, h('th', null, 'Alerta'), AREAS.map((a) => h('th', { class: 'centro' }, CFG.areas[a].nombre)), h('th', null, 'Correos extra'))), h('tbody', null, filas))),
     h('div', { class: 'rejilla' }, campo('Tope de destinatarios por día', tope, 'Máximo 10,000 (límite de Exchange por buzón).')),

@@ -152,6 +152,16 @@ test('Reprogramaciones e incidencias', async () => {
   await assertFails(deleteDoc(doc(como('transporte'), 'lc_incidencias', 'I1')));
   await assertSucceeds(deleteDoc(doc(como('admin'), 'lc_incidencias', 'I1')));
 });
+test('Correos de alertas: configuración legible por todas las áreas y estado del correo', async () => {
+  await env.withSecurityRulesDisabled(async (c) => { await setDoc(doc(c.firestore(), 'lc_config', 'correos'), { activo: true, para: { parado: ['a@x.com'] } }); });
+  await assertSucceeds(getDoc(doc(como('ventas'), 'lc_config', 'correos')));
+  await assertFails(getDoc(doc(como('ventas'), 'lc_config', 'gps')));
+  await assertFails(setDoc(doc(como('ventas'), 'lc_config', 'correos'), { activo: false }));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'lc_config', 'correos')));
+  await env.withSecurityRulesDisabled(async (c) => { await setDoc(doc(c.firestore(), 'lc_alertas', 'C1'), { tipo: 'parado', texto: 't', area: 'operacion', leida: false, correo: 'pendiente' }); });
+  await assertSucceeds(updateDoc(doc(como('operacion'), 'lc_alertas', 'C1'), { correo: 'enviado', correo_para: 3, correo_fecha: 'x' }));
+  await assertFails(updateDoc(doc(como('operacion'), 'lc_alertas', 'C1'), { correo: 'enviado', texto: 'otro' }));
+});
 test('La sesión vence a las 12 horas', async () => {
   await assertSucceeds(getDoc(doc(como('transporte', 11.9), 'lc_despachos', 'F1')));
   await assertFails(getDoc(doc(como('transporte', 12.1), 'lc_despachos', 'F1')));

@@ -1,6 +1,6 @@
 /* Revisión de partidas contra Pesos, Embalajes y Estibas. La descripción del producto trae «1.68 MT2/ 24 CJ»:
    con los m² por caja y las cajas por tarima se busca el formato en la tabla. */
-import { EMBALAJES, ADHESIVOS, REVISION } from './embalajes-datos.js?v=18';
+import { EMBALAJES, ADHESIVOS, REVISION } from './embalajes-datos.js?v=19';
 export { EMBALAJES, ADHESIVOS, REVISION };
 
 export function leerDescripcion(desc) {

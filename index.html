@@ -13,10 +13,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
   <script>/* Si hay una versión nueva publicada, recarga una vez para no quedarse con la página guardada en el navegador. */
-    (function () { var V = '18'; try { fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+    (function () { var V = '19'; try { fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
       t = String(t || '').trim(); if (!t || t === V || sessionStorage.getItem('recarga-' + t)) return;
       sessionStorage.setItem('recarga-' + t, '1'); var u = new URL(location.href); u.searchParams.set('_v', t); location.replace(u.href); }).catch(function () {}); } catch (e) {} })();</script>
-  <link rel="stylesheet" href="css/estilos.css?v=18">
+  <link rel="stylesheet" href="css/estilos.css?v=19">
 </head>
 <body>
   <div class="franja"></div>
@@ -31,7 +31,7 @@
     <main class="contenedor" id="main"><p class="gris">Cargando…</p></main>
   </div>
   <div id="avisos" aria-live="polite"></div>
-  <script src="js/config.js?v=18"></script>
-  <script type="module" src="js/app.js?v=18"></script>
+  <script src="js/config.js?v=19"></script>
+  <script type="module" src="js/app.js?v=19"></script>
 </body>
 </html>

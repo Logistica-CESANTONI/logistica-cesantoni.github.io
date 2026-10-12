@@ -1,7 +1,7 @@
 /* Acceso a Firebase (colecciones lc_). Las reglas de Firestore repiten cada permiso en el servidor:
    ocultar un botón aquí no es lo que protege los datos. */
-import * as fb from './firebase-sdk.js?v=18';
-import { ESTATUS_OPERACION, docsCompletos, idFolio } from './reglas.js?v=18';
+import * as fb from './firebase-sdk.js?v=19';
+import { ESTATUS_OPERACION, docsCompletos, idFolio, destinatarios } from './reglas.js?v=19';
 
 const CFG = window.LC_CONFIG;
 const params = new URLSearchParams(location.search);
@@ -98,8 +98,9 @@ export async function guardarUsuario(correo, datos) {
   correo = correoNormal(correo);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) throw new Error('Correo no válido.');
   await fb.setDoc(D('lc_usuarios', correo), { nombre: String(datos.nombre || '').trim(), area: datos.area, activo: datos.activo !== false, actualizado: ahora(), por: sesion.correo });
+  await recalcularCorreos().catch(() => {}); // los destinatarios de las alertas salen de las áreas
 }
-export async function borrarUsuario(correo) { await fb.deleteDoc(D('lc_usuarios', correoNormal(correo))); }
+export async function borrarUsuario(correo) { await fb.deleteDoc(D('lc_usuarios', correoNormal(correo))); await recalcularCorreos().catch(() => {}); }
 
 /* ------------------------------------------------------------------ folios */
 export async function folios() { return lista(await fb.getDocs(C('lc_folios'))); }
@@ -112,7 +113,7 @@ export async function borrarFolio(f) {
   for (let i = 0; i < docs.length; i += 450) {
     const b = fb.writeBatch(db);
     docs.slice(i, i + 450).forEach((r) => b.delete(r));
-    await b.commit();
+    await confirmar(b);
   }
 }
 export async function historial(id) {
@@ -191,7 +192,7 @@ export async function actualizarFolio(f, g, resumen) {
   if (!MODIFICABLE.includes(f.estatus)) {
     alertaEn(b, 'modificacion', f, 'Llegó una modificación del acopio del folio ' + f.folio + ' pero ya está ' + f.estatus.replace('_', ' ') + ': no se aplicó. ' + resumen);
     bitacora(b, f.id, 'Modificación NO aplicada (folio ' + f.estatus.replace('_', ' ') + '): ' + resumen);
-    await b.commit();
+    await confirmar(b);
     return false;
   }
   const cambios = Object.assign(contenido(g), { actualizado: ahora(), modificado: ahora(), version: (Number(f.version) || 1) + 1 });
@@ -200,7 +201,7 @@ export async function actualizarFolio(f, g, resumen) {
   bitacora(b, f.id, 'Modificación de acopio (versión ' + cambios.version + '): ' + resumen);
   // Si ya se habían entregado documentos, hay que revisarlos contra el material nuevo.
   if (Object.values(f.docs || {}).some(Boolean)) alertaEn(b, 'modificacion', f, 'El acopio del folio ' + f.folio + ' cambió: revisa factura, carta porte y remisión. ' + resumen);
-  await b.commit();
+  await confirmar(b);
   return true;
 }
 
@@ -216,14 +217,14 @@ export async function cambiarEstatus(f, estatus, motivo) {
   espejo(b, f, cambios);
   bitacora(b, f.id, 'Estatus: ' + estatus + (cambios.motivo ? ' — ' + cambios.motivo : ''));
   if (estatus === 'PARADO') alertaEn(b, 'parado', f, 'Folio ' + f.folio + ' PARADO: ' + cambios.motivo);
-  await b.commit();
+  await confirmar(b);
 }
 export async function marcarDocumento(f, clave, valor) {
   const b = fb.writeBatch(db);
   b.update(D('lc_folios', f.id), { ['docs.' + clave]: !!valor, actualizado: ahora() });
   espejo(b, f, { docs: Object.assign({}, f.docs, { [clave]: !!valor }) });
   bitacora(b, f.id, (valor ? 'Documento entregado: ' : 'Documento retirado: ') + clave.replace('_', ' '));
-  await b.commit();
+  await confirmar(b);
 }
 
 /* ------------------------------------------------------------------ transporte */
@@ -238,14 +239,14 @@ export async function guardarDespacho(f, visible, privado, alertaTexto) {
   b.set(D('lc_despachos', f.id), Object.assign({}, privado, { actualizado: ahora() }), { merge: true });
   bitacora(b, f.id, 'Asignación: ' + [publico.transportista, publico.unidad, publico.cita && 'cita ' + publico.cita.replace('T', ' '), publico.anden && 'andén ' + publico.anden].filter(Boolean).join(' · '));
   if (alertaTexto) alertaEn(b, 'capacidad', f, alertaTexto);
-  await b.commit();
+  await confirmar(b);
 }
 export async function guardarChecklist(f, respuestas, revision) {
   const b = fb.writeBatch(db);
   b.set(D('lc_despachos', f.id), { checklist: respuestas, checklist_fecha: ahora(), actualizado: ahora() }, { merge: true });
   bitacora(b, f.id, 'Checklist pre-salida: ' + (revision.pasa ? 'aprobado' : 'reprobado (' + revision.reprobados.join(', ') + ')'));
   if (!revision.pasa) alertaEn(b, 'checklist', f, 'Checklist pre-salida reprobado en ' + f.folio + ': ' + revision.reprobados.join(', '));
-  await b.commit();
+  await confirmar(b);
 }
 export async function salirARuta(f, revision) {
   const b = fb.writeBatch(db);
@@ -254,7 +255,7 @@ export async function salirARuta(f, revision) {
   bitacora(b, f.id, 'Salió a ruta; monitoreo GPS activo');
   if (!revision) { /* Nacional: no lleva checklist */ } else if (!revision.contestado) alertaEn(b, 'sin_checklist', f, 'El folio ' + f.folio + ' salió a ruta SIN checklist pre-salida.');
   else if (!revision.pasa) alertaEn(b, 'checklist', f, 'El folio ' + f.folio + ' salió a ruta con checklist reprobado: ' + revision.reprobados.join(', '));
-  await b.commit();
+  await confirmar(b);
 }
 export async function entregar(f) {
   const b = fb.writeBatch(db);
@@ -262,7 +263,7 @@ export async function entregar(f) {
   b.update(D('lc_folios', f.id), { estatus: 'ENTREGADO', entregado: cuando, actualizado: cuando });
   espejo(b, f, { estatus: 'ENTREGADO', entregado: cuando });
   bitacora(b, f.id, 'Entregado');
-  await b.commit();
+  await confirmar(b);
 }
 
 /* Ubicación de entrega de un folio de Última Milla (coordenadas y, si la hay, la liga de Google Maps). */
@@ -286,7 +287,7 @@ export async function reprogramar(f, citaNueva, motivo, detalle) {
   registro(b, f, { tipo: 'REPROGRAMACION', motivo, detalle: txt(detalle, 500), cita_anterior: f.cita || '', cita_nueva: citaNueva || '' });
   if (citaNueva !== undefined && citaNueva !== f.cita) { b.update(D('lc_folios', f.id), { cita: citaNueva || '', actualizado: ahora() }); espejo(b, f, { cita: citaNueva || '' }); }
   bitacora(b, f.id, 'Reprogramado: ' + motivo + (citaNueva ? ' · nueva cita ' + citaNueva.replace('T', ' ') : '') + (detalle ? ' — ' + detalle : ''));
-  await b.commit();
+  await confirmar(b);
 }
 /* Incidencia (cualquier área): categoría, motivo y comentario. */
 export async function registrarIncidencia(f, categoria, motivo, detalle) {
@@ -294,7 +295,7 @@ export async function registrarIncidencia(f, categoria, motivo, detalle) {
   const b = fb.writeBatch(db);
   registro(b, f, { tipo: 'INCIDENCIA', categoria, motivo, detalle: txt(detalle, 500) });
   bitacora(b, f.id, 'Incidencia: ' + categoria + ' · ' + motivo + (detalle ? ' — ' + detalle : ''));
-  await b.commit();
+  await confirmar(b);
 }
 
 /* Catálogos (Transporte y Administrador). */
@@ -309,8 +310,42 @@ export async function config(id) { const s = await fb.getDoc(D('lc_config', id))
 export async function guardarConfig(id, datos) { await fb.setDoc(D('lc_config', id), datos, { merge: true }); }
 
 /* ------------------------------------------------------------------ alertas (el correo está simulado: solo se registra) */
+async function confirmar(b) { await b.commit(); despacharCorreos(); }
+/* Manda por correo las alertas recién guardadas (script de Apps Script → Outlook) y anota el resultado en cada alerta.
+   No detiene nada: si falla, la alerta queda con el error. */
+async function despacharCorreos() {
+  const lote = porEnviar.splice(0);
+  if (!lote.length) return;
+  let cfg = {};
+  try { cfg = await config('correos'); } catch (e) { return; }
+  const anotar = (ref, datos) => fb.updateDoc(ref, datos).catch(() => {});
+  if (!cfg.activo || !cfg.url) { lote.forEach(({ ref }) => anotar(ref, { correo: 'no activado' })); return; }
+  const idToken = await tokenGps();
+  for (const { ref, datos } of lote) {
+    try {
+      const r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ idToken, alerta: datos }) });
+      const d = await r.json();
+      await anotar(ref, Object.assign({ correo: String(d.estado || 'error'), correo_fecha: ahora() }, d.para ? { correo_para: Number(d.para) } : {}, d.error ? { correo_error: String(d.error).slice(0, 300) } : {}));
+    } catch (e) { await anotar(ref, { correo: 'error', correo_error: String(e.message || e).slice(0, 300), correo_fecha: ahora() }); }
+  }
+}
+/* Recalcula a quién va cada tipo de alerta (áreas → correos de los usuarios activos + extra). Lo hace el Administrador al guardar. */
+export async function recalcularCorreos(cfg) {
+  cfg = cfg || await config('correos');
+  if (!cfg.areas) return cfg;
+  const lista = await usuarios();
+  const para = {};
+  Object.keys(cfg.areas).forEach((tipo) => { para[tipo] = destinatarios(cfg, lista, tipo, CFG.administrador); });
+  await guardarConfig('correos', Object.assign({}, cfg, { para }));
+  return Object.assign({}, cfg, { para });
+}
+/* Las alertas se guardan con el lote y, ya guardadas, se mandan por correo con el script de Outlook (ver despacharCorreos). */
+const porEnviar = [];
 function alertaEn(b, tipo, f, texto) {
-  b.set(fb.doc(C('lc_alertas')), { tipo, folio: f ? f.folio : '', folio_id: f ? f.id : '', texto, fecha: ahora(), area: sesion.area, por: sesion.correo, leida: false, correo: 'pendiente' }); // la función correoAlertas lo manda desde Outlook y anota el resultado
+  const ref = fb.doc(C('lc_alertas'));
+  const datos = { tipo, folio: f ? f.folio : '', folio_id: f ? f.id : '', texto, fecha: ahora(), area: sesion.area, por: sesion.correo, leida: false, correo: 'pendiente' };
+  b.set(ref, datos);
+  porEnviar.push({ ref, datos });
 }
 export async function alertas() { return lista(await fb.getDocs(C('lc_alertas'))).sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); }
 export async function marcarLeida(id) { await fb.updateDoc(D('lc_alertas', id), { leida: true }); }

@@ -82,7 +82,9 @@ toneladas del folio** (con varias paradas, la del destino más caro). La tarifa 
    simula el avance en línea recta del origen al destino; la pantalla nunca queda vacía.
 5. **Última Milla:** orden de paradas para varios folios en un viaje (vecino más cercano + 2-opt, distancia en línea recta). Las
    coordenadas de cada destino se capturan una vez y se reutilizan. Es una aproximación; no usa Samsara ni se manda a otro sistema.
-6. **Alertas:** checklist reprobado, salida sin checklist, sobrepeso y folio parado. El correo está **simulado**: se registra, no se envía.
+6. **Alertas:** checklist reprobado, salida sin checklist, sobrepeso, folio parado y modificación de acopio. Cada alerta se manda por
+   correo desde `jroman@cesantoni.com.mx` (Outlook) a las áreas y correos elegidos en Configuración › Correos de alertas, hasta
+   10,000 destinatarios al día. Mientras el script no esté instalado, la alerta queda registrada como «no activado».
 
 ## Modificaciones de acopio
 
@@ -109,7 +111,8 @@ Mientras tanto, todo el Monitoreo funciona con datos simulados.
 ## Colecciones
 
 `lc_folios` (+ `historial`), `lc_pantalla`, `lc_despachos`, `lc_unidades`, `lc_destinos`, `lc_rutas`, `lc_alertas`, `lc_incidencias`, `lc_usuarios` (correo → área),
-`lc_config` (`general` = origen, `gps` = puente, `transportistas` = transportistas externos y su cuenta espejo).
+`lc_config` (`general` = origen, `gps` = puente, `transportistas` = transportistas externos y su cuenta espejo, `tarifas`, `clientes`,
+`correos` = script, tope diario y destinatarios por tipo de alerta).
 
 ## Pruebas
 
@@ -120,9 +123,9 @@ Mientras tanto, todo el Monitoreo funciona con datos simulados.
 
 ## Pendiente
 
-- Instalar el envío de correos de alertas por **Outlook** (requisito: **10,000 correos por día**). El código está en
-  `docs/correo-outlook/` (función `correoAlertas`, Microsoft Graph desde un buzón dedicado, tope diario de 10,000 destinatarios).
-  Falta: plan Blaze de Firebase y que Sistemas registre la aplicación en Microsoft Entra (pasos en `docs/correo-outlook/LEEME.md`).
-  Los destinatarios por tipo de alerta se eligen en Configuración › Correos de alertas.
+- Instalar el envío de correos de alertas por **Outlook** desde `jroman@cesantoni.com.mx` (requisito: **10,000 correos por día**).
+  Es un Apps Script (`docs/correo-outlook/Codigo.gs`) que manda con Microsoft Graph y lleva el tope diario. No necesita plan Blaze;
+  falta que Sistemas registre la aplicación en Microsoft Entra con `Mail.Send` y publicar el script (pasos en
+  `docs/correo-outlook/LEEME.md`).
 - Puente de Samsara publicado (hoy el Monitoreo es simulado).
 - Registro automático de folios desde el correo de Outlook (por definir: qué correos, modificaciones y desde qué fecha).

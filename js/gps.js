@@ -1,7 +1,7 @@
 /* Ubicación de las unidades en ruta. Si la unidad tiene vehículo de Samsara y está configurado el puente (Cloud Function
    que guarda el token de Samsara; el token nunca va en esta página pública), se pide la ubicación real. Si falla por lo que
    sea (sin puente, sin internet, error, unidad sin vincular), se calcula una posición SIMULADA. La pantalla nunca queda vacía. */
-import { km } from './ruta.js?v=18';
+import { km } from './ruta.js?v=19';
 
 const VEL_SIM_KMH = 55;
 

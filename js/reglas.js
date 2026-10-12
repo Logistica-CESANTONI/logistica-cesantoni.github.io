@@ -109,3 +109,15 @@ export function puntualidad(f, diasTransito) {
   const fin = new Date(limite); fin.setHours(23, 59, 59, 999);
   return new Date(f.entregado) <= fin ? 'A tiempo' : 'Tarde';
 }
+
+/* Correos de alertas: a quién va cada tipo (áreas elegidas + correos extra). usuarios = lc_usuarios [{ id: correo, area, activo }]. */
+export const TIPOS_ALERTA = { checklist: 'Checklist pre-salida reprobado', sin_checklist: 'Salida a ruta sin checklist', capacidad: 'Sobrepeso en la unidad',
+  parado: 'Folio parado', modificacion: 'Modificación de acopio' };
+const esCorreo = (c) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(c || '').trim());
+export function destinatarios(config, usuarios, tipo, administrador) {
+  const areas = new Set(((config.areas || {})[tipo]) || []), lista = new Set();
+  (usuarios || []).forEach((u) => { if (u.activo !== false && areas.has(u.area) && esCorreo(u.id)) lista.add(u.id.trim().toLowerCase()); });
+  if (areas.has('admin') && esCorreo(administrador)) lista.add(administrador.toLowerCase());
+  (((config.extra || {})[tipo]) || []).forEach((c) => { if (esCorreo(c)) lista.add(String(c).trim().toLowerCase()); });
+  return [...lista];
+}
