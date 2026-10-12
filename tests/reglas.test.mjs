@@ -216,3 +216,16 @@ test('Entrega a tiempo o tarde', () => {
   assert.equal(puntualidad({ estatus: 'ENTREGADO', entregado: '2026-10-12T10:00:00' }), null);
   assert.equal(puntualidad({ estatus: 'EN_RUTA', cita: '2026-10-13' }), null);
 });
+test('Correos de alertas (Outlook): destinatarios, mensaje y tope diario', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  const { destinatarios, armarCorreo, cabe } = req('../docs/correo-outlook/logica.js');
+  const usuarios = [{ id: 'trafico@x.com', area: 'transporte' }, { id: 'baja@x.com', area: 'transporte', activo: false }, { id: 'opera@x.com', area: 'operacion' }];
+  const config = { activo: true, areas: { checklist: ['transporte', 'admin'] }, extra: { checklist: ['Jefe@x.com', 'no-es-correo'] } };
+  assert.deepEqual(destinatarios(config, usuarios, { tipo: 'checklist' }, 'jroman@cesantoni.com.mx'), ['trafico@x.com', 'jroman@cesantoni.com.mx', 'jefe@x.com']);
+  assert.deepEqual(destinatarios(config, usuarios, { tipo: 'parado' }, 'jroman@cesantoni.com.mx'), []);
+  const c = armarCorreo({ tipo: 'parado', folio: '35298', texto: 'Folio 35298 PARADO: <falta material>', fecha: 'x', area: 'operacion' }, 'https://s/');
+  assert.match(c.subject, /Folio parado · Folio 35298/);
+  assert.match(c.html, /&lt;falta material&gt;/);
+  assert.equal(cabe(9990, 10), true); assert.equal(cabe(9995, 10), false); assert.equal(cabe(0, 50, 40), false);
+});

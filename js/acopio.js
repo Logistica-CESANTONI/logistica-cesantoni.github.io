@@ -1,8 +1,8 @@
 /* Formato de Acopio (.xlsx / .xlsm): lee las hojas Base, CB360 y Exhibición sin librerías, separa por cliente y destino,
    y calcula tarimas, resto de tarima y peso. Los títulos de columna se buscan por nombre (no por posición), así que el
    formato puede mover columnas. Todo lo calculado se muestra antes de crear los folios para corregirlo a mano. */
-import { combinarFolios, tarimas, tipoUnidad, redondeo, norm, coordenadasDeLiga } from './reglas.js?v=17';
-import { embalajeDe } from './embalajes.js?v=17';
+import { combinarFolios, tarimas, tipoUnidad, redondeo, norm, coordenadasDeLiga } from './reglas.js?v=18';
+import { embalajeDe } from './embalajes.js?v=18';
 
 export const HOJAS = [['BASE', 'Base'], ['CB360', 'CB360'], ['EXHIBICION', 'Exhibición']];
 

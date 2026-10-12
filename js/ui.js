@@ -94,4 +94,4 @@ export function mapaEn(L, contenedor, centro) {
   return m;
 }
 /* «20.67, -103.35» o una liga larga de Google Maps → { lat, lng } (ver coordenadasDeLiga en reglas.js). */
-export { coordenadasDeLiga as leerCoordenadas } from './reglas.js?v=17';
+export { coordenadasDeLiga as leerCoordenadas } from './reglas.js?v=18';

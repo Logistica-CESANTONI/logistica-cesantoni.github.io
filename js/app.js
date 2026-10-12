@@ -1,13 +1,13 @@
 /* Control de Embarques · Somos Logística CESANTONI.
    Ventas da de alta el pedido → Operación lo arma y documenta → Transporte lo despacha y lo monitorea. */
-import * as API from './datos.js?v=17';
-import { MOTIVOS_REPROGRAMACION, INCIDENCIAS, puntualidad, ESTATUS, ESTATUS_OPERACION, DOCUMENTOS, CHECKLIST, docsCompletos, docsAvance, tipoUnidad, excedeCapacidad, revisarChecklist, norm, combinarFolios, esLigaCorta } from './reglas.js?v=17';
-import { revisarPartida, EMBALAJES, ADHESIVOS, REVISION } from './embalajes.js?v=17';
-import { leerLibro, interpretar, combinar, compararFolio } from './acopio.js?v=17';
-import { desdeSeguimiento, desdeFletes, combinarCatalogos, tarifaPara, clientePara, unirTransportista } from './catalogos.js?v=17';
-import { planear } from './ruta.js?v=17';
-import { ubicacion } from './gps.js?v=17';
-import { h, mount, toast, ocupado, fecha, kg, toneladas, pesos, modal, campo, entrada, selector, logos, cargarMapa, mapaEn, leerCoordenadas } from './ui.js?v=17';
+import * as API from './datos.js?v=18';
+import { MOTIVOS_REPROGRAMACION, INCIDENCIAS, puntualidad, ESTATUS, ESTATUS_OPERACION, DOCUMENTOS, CHECKLIST, docsCompletos, docsAvance, tipoUnidad, excedeCapacidad, revisarChecklist, norm, combinarFolios, esLigaCorta } from './reglas.js?v=18';
+import { revisarPartida, EMBALAJES, ADHESIVOS, REVISION } from './embalajes.js?v=18';
+import { leerLibro, interpretar, combinar, compararFolio } from './acopio.js?v=18';
+import { desdeSeguimiento, desdeFletes, combinarCatalogos, tarifaPara, clientePara, unirTransportista } from './catalogos.js?v=18';
+import { planear } from './ruta.js?v=18';
+import { ubicacion } from './gps.js?v=18';
+import { h, mount, toast, ocupado, fecha, kg, toneladas, pesos, modal, campo, entrada, selector, logos, cargarMapa, mapaEn, leerCoordenadas } from './ui.js?v=18';
 
 const CFG = window.LC_CONFIG;
 const main = document.getElementById('main'), nav = document.getElementById('nav'), cuenta = document.getElementById('cuenta');
@@ -1025,13 +1025,48 @@ async function incidencias() {
 }
 
 /* ================================================================== ALERTAS */
+const estadoCorreo = (a) => ({ enviado: 'enviado' + (a.correo_para ? ' a ' + a.correo_para : ''), pendiente: 'pendiente (envío por Outlook aún no instalado)',
+  'no activado': 'no activado', 'sin destinatarios': 'sin destinatarios', 'tope diario': 'no se mandó: se llegó al tope del día', error: 'error' + (a.correo_error ? ' — ' + a.correo_error : ''),
+  simulado: 'simulado' })[a.correo || 'pendiente'] || a.correo;
+/* Configuración › Correos de alertas: qué áreas (y qué correos extra) reciben cada tipo de alerta. Lo lee la función correoAlertas. */
+async function seccionCorreos() {
+  const cfg = await API.config('correos');
+  const TIPOS = [['checklist', 'Checklist reprobado'], ['sin_checklist', 'Salida sin checklist'], ['capacidad', 'Sobrepeso'], ['parado', 'Folio parado'], ['modificacion', 'Modificación de acopio']];
+  const AREAS = ['ventas', 'operacion', 'transporte', 'admin'];
+  const activo = h('input', { type: 'checkbox', checked: !!cfg.activo, id: 'correo-activo' });
+  const tope = entrada({ type: 'number', min: 1, max: 10000, step: 1, value: cfg.tope_diario || 10000, id: 'correo-tope' });
+  const casillas = {}, extras = {};
+  const filas = TIPOS.map(([k, n]) => {
+    casillas[k] = {};
+    extras[k] = entrada({ value: ((cfg.extra || {})[k] || []).join(', '), placeholder: 'otros correos, separados por coma', 'aria-label': 'Correos extra ' + n });
+    return h('tr', null, h('td', null, h('b', null, n)),
+      AREAS.map((a) => h('td', { class: 'centro' }, casillas[k][a] = h('input', { type: 'checkbox', checked: ((cfg.areas || {})[k] || []).includes(a), 'aria-label': n + ' · ' + CFG.areas[a].nombre }))),
+      h('td', null, extras[k]));
+  });
+  const btn = h('button', { class: 'btn primario', type: 'button' }, 'Guardar correos');
+  btn.addEventListener('click', async () => {
+    const datos = { activo: activo.checked, tope_diario: Math.min(10000, Math.max(1, Number(tope.value) || 10000)), areas: {}, extra: {} };
+    TIPOS.forEach(([k]) => {
+      datos.areas[k] = AREAS.filter((a) => casillas[k][a].checked);
+      datos.extra[k] = extras[k].value.split(/[,;\s]+/).map((c) => c.trim().toLowerCase()).filter((c) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c));
+    });
+    try { await ocupado(btn, () => API.guardarConfig('correos', datos)); toast('Correos de alertas guardados.'); } catch (x) { err(x); }
+  });
+  return h('section', { class: 'tarjeta' }, h('h2', null, 'Correos de alertas (Outlook)'),
+    h('p', { class: 'gris chico' }, 'Se mandan desde un buzón de Outlook de CESANTONI (hasta 10,000 destinatarios al día). Requiere instalar la función de envío: ver docs/correo-outlook en el repositorio. Mientras no esté instalada, las alertas quedan como «pendiente».'),
+    h('label', { class: 'casilla' }, activo, ' Enviar las alertas por correo'),
+    h('div', { class: 'tabla-scroll' }, h('table', { class: 'tabla compacta' },
+      h('thead', null, h('tr', null, h('th', null, 'Alerta'), AREAS.map((a) => h('th', { class: 'centro' }, CFG.areas[a].nombre)), h('th', null, 'Correos extra'))), h('tbody', null, filas))),
+    h('div', { class: 'rejilla' }, campo('Tope de destinatarios por día', tope, 'Máximo 10,000 (límite de Exchange por buzón).')),
+    h('div', { class: 'acciones' }, btn));
+}
 async function alertas() {
   const lista = await API.alertas();
   const TIPOS = { checklist: 'Checklist reprobado', sin_checklist: 'Salida sin checklist', capacidad: 'Sobrepeso', parado: 'Folio parado', modificacion: 'Modificación de acopio' };
-  mount(main, encabezado('Alertas', 'Avisos automáticos del sistema. El envío por correo está simulado: se registra aquí, todavía no se manda.'),
+  mount(main, encabezado('Alertas', 'Avisos automáticos del sistema. Si el envío por Outlook está activado, también llegan por correo (Configuración › Correos de alertas).'),
     h('section', { class: 'tarjeta' }, lista.length ? h('ul', { class: 'alertas' }, lista.map((a) => h('li', { class: a.leida ? 'leida' : '' },
       h('div', null, h('span', { class: 'pill ' + (a.leida ? 'gris' : 'rojo') }, h('i'), TIPOS[a.tipo] || a.tipo), ' ', h('b', null, a.texto)),
-      h('div', { class: 'gris chico' }, fecha(a.fecha), ' · ', CFG.areas[a.area] ? CFG.areas[a.area].nombre : a.area, a.por ? ' (' + a.por + ')' : '', ' · correo: ', a.correo || 'simulado'),
+      h('div', { class: 'gris chico' }, fecha(a.fecha), ' · ', CFG.areas[a.area] ? CFG.areas[a.area].nombre : a.area, a.por ? ' (' + a.por + ')' : '', ' · correo: ', estadoCorreo(a)),
       a.leida ? null : h('button', { class: 'btn chico', onclick: async () => { try { await API.marcarLeida(a.id); alertas().catch(fallo); } catch (e) { err(e); } } }, 'Marcar leída'))))
       : h('p', { class: 'gris' }, 'Sin alertas.')));
 }
@@ -1053,6 +1088,6 @@ async function config() {
       h('p', { class: 'gris chico' }, 'El token de Samsara no puede ir en esta página (es pública). Va en un puente (Cloud Function) que guarda el token y responde la ubicación. Ver docs/samsara-puente en el repositorio. Si el puente falla o está vacío, el Monitoreo usa datos simulados.'),
       campo('URL del puente', puente), h('div', { class: 'acciones' }, g2))
   ];
-  if (puede('admin')) secciones.splice(1, 0, await seccionUsuarios());
+  if (puede('admin')) secciones.splice(1, 0, await seccionUsuarios(), await seccionCorreos());
   mount(main, secciones);
 }

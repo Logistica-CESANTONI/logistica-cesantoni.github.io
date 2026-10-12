@@ -3,7 +3,7 @@
    - «Fletes» (hoja CATALOGOS): tarifa y tarifa LP por destino, clasificación del cliente y datos de pago del transportista.
    Las columnas se buscan por su título, así que el orden puede cambiar. Nada de esto se guarda en el sitio (es público):
    se guarda en Firebase, en lc_config, que solo leen Transporte y Administrador. */
-import { norm } from './reglas.js?v=17';
+import { norm } from './reglas.js?v=18';
 
 const texto = (v) => { const t = String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim(); return /^#(N\/A|VALUE!|REF!|DIV\/0!|NAME\?)$/i.test(t) ? '' : t; };
 const numero = (v) => { const t = String(v === undefined || v === null ? '' : v).replace(/[$,\s]/g, ''); if (!t) return null; const n = Number(t); return isNaN(n) ? null : n; };

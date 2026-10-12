@@ -77,6 +77,12 @@ for (const [c, n, a] of [['ventas@cesantoni.com.mx', 'Vendedor Uno', 'ventas'], 
   await page.locator('td', { hasText: c.toLowerCase() }).waitFor();
 }
 check(await page.locator('td', { hasText: 'transporte@cesantoni.com.mx' }).count() === 1, 'alta de usuarios con su área (correo en minúsculas)');
+await page.locator('#correo-activo').check();
+await page.getByLabel('Checklist reprobado · Transporte').check();
+await page.getByLabel('Correos extra Folio parado').fill('jefe@cesantoni.com.mx, no-es-correo');
+await page.getByRole('button', { name: 'Guardar correos' }).click();
+await esperarToast('Correos de alertas guardados');
+check(true, 'Configuración: destinatarios de los correos de alertas por tipo');
 await salir();
 for (const c of ['ventas@cesantoni.com.mx', 'opera@cesantoni.com.mx', 'transporte@cesantoni.com.mx']) { await crear(c); await page.locator('#nav a').first().waitFor({ timeout: 20000 }); await salir(); }
 check(true, 'cada persona crea su contraseña y confirma su correo una sola vez');

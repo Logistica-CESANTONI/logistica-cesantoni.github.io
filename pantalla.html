@@ -12,10 +12,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Montserrat:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script>/* Si hay una versión nueva publicada, recarga una vez (la pantalla se queda abierta todo el día). */
-    (function () { var V = '17'; setInterval(chk, 600000); chk(); function chk() { try { fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+    (function () { var V = '18'; setInterval(chk, 600000); chk(); function chk() { try { fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
       t = String(t || '').trim(); if (!t || t === V || sessionStorage.getItem('recarga-' + t)) return;
       sessionStorage.setItem('recarga-' + t, '1'); var u = new URL(location.href); u.searchParams.set('_v', t); location.replace(u.href); }).catch(function () {}); } catch (e) {} } })();</script>
-  <link rel="stylesheet" href="css/pantalla.css?v=17">
+  <link rel="stylesheet" href="css/pantalla.css?v=18">
 </head>
 <body>
   <header class="cab">
@@ -34,7 +34,7 @@
     <span><i class="luz rojo"></i> Parado / Incompleto</span>
     <span id="pagina" class="pagina"></span>
   </footer>
-  <script src="js/config.js?v=17"></script>
-  <script type="module" src="js/pantalla.js?v=17"></script>
+  <script src="js/config.js?v=18"></script>
+  <script type="module" src="js/pantalla.js?v=18"></script>
 </body>
 </html>

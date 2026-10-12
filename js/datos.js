@@ -1,7 +1,7 @@
 /* Acceso a Firebase (colecciones lc_). Las reglas de Firestore repiten cada permiso en el servidor:
    ocultar un botón aquí no es lo que protege los datos. */
-import * as fb from './firebase-sdk.js?v=17';
-import { ESTATUS_OPERACION, docsCompletos, idFolio } from './reglas.js?v=17';
+import * as fb from './firebase-sdk.js?v=18';
+import { ESTATUS_OPERACION, docsCompletos, idFolio } from './reglas.js?v=18';
 
 const CFG = window.LC_CONFIG;
 const params = new URLSearchParams(location.search);
@@ -310,7 +310,7 @@ export async function guardarConfig(id, datos) { await fb.setDoc(D('lc_config', 
 
 /* ------------------------------------------------------------------ alertas (el correo está simulado: solo se registra) */
 function alertaEn(b, tipo, f, texto) {
-  b.set(fb.doc(C('lc_alertas')), { tipo, folio: f ? f.folio : '', folio_id: f ? f.id : '', texto, fecha: ahora(), area: sesion.area, por: sesion.correo, leida: false, correo: 'simulado' });
+  b.set(fb.doc(C('lc_alertas')), { tipo, folio: f ? f.folio : '', folio_id: f ? f.id : '', texto, fecha: ahora(), area: sesion.area, por: sesion.correo, leida: false, correo: 'pendiente' }); // la función correoAlertas lo manda desde Outlook y anota el resultado
 }
 export async function alertas() { return lista(await fb.getDocs(C('lc_alertas'))).sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); }
 export async function marcarLeida(id) { await fb.updateDoc(D('lc_alertas', id), { leida: true }); }
